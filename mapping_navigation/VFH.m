@@ -1,16 +1,16 @@
 function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, searchWindowSize)
 
     % ── Parameters (tune these) ───────────────────────────────────────────
-    alpha       = pi/60;
-    numSectors  = 2*pi/alpha;               % angular resolution (5° per bin)
-    smax        = 40;                        % min bins for a "wide" valley
-    threshold   = 1;                        % histogram counts below this = free
+    alpha       = pi/36;
+    numSectors  = round(2*pi/alpha);               % angular resolution (5° per bin)
+    smax        = 14;                        % min bins for a "wide" valley
+    threshold   = 2;                        % histogram counts below this = free
     smoothSigma = 1.5;                      % gaussian smoothing std dev
     scale       = 20;                       % map scale (pixels/meter)
     origin      = 0;                        % map origin offset
-    
+
     half  = floor(searchWindowSize / 2);
-    b  = 2;
+    b  = 3;
     a  = half*b*sqrt(2);
 
     % Extract local obstacle points from map window
@@ -40,7 +40,7 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
         y = y_map(i);
 
         Cxy = window(x, y);
-       
+
 
         dx = x - xCenterLocal;
         dy = y - yCenterLocal;
@@ -49,11 +49,10 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
 
         beta = atan2(dy, dx);                                       % obstacle angle   
         m    = max(0, Cxy^2*(a - b*d));                             % magnitude (closer = stronger)
-        k    = mod(floor((beta + pi) / alpha), numSectors) + 1;     % sector index
+        k    = mod(round((beta + pi) / alpha), numSectors) + 1;     % sector index
 
         h(k) = h(k) + m;
     end
-
     % Smooth histogram (1D Gaussian, circular)
     h = smoothHistogram(h, smoothSigma);
     binary = h > threshold;

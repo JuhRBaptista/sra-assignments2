@@ -1,6 +1,6 @@
 function [Fa, Fr] = VFF(currentPose, targetPose, map, searchWindowSize, scale, origin)
     
-    Fcr = 1;
+    Fcr = 2;
     Fca = 1;
 
     targetX = targetPose(1);

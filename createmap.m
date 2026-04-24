@@ -1,1 +1,1 @@
-path = pathPlanning("ymap", "variables/path_ymap.mat");
+path = pathPlanning("empty", "variables/path_empty.mat");
