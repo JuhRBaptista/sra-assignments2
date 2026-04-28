@@ -3,8 +3,8 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     % ── Parameters (tune these) ───────────────────────────────────────────
     alpha       = pi/36;
     numSectors  = round(2*pi/alpha);               % angular resolution (5° per bin)
-    smax        = 14;                        % min bins for a "wide" valley
-    threshold   = 2;                        % histogram counts below this = free
+    smax        = 20;                        % min bins for a "wide" valley
+    threshold   = 1;                        % histogram counts below this = free
     smoothSigma = 1.5;                      % gaussian smoothing std dev
     scale       = 20;                       % map scale (pixels/meter)
     origin      = 0;                        % map origin offset
@@ -27,8 +27,8 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
 
     window = map(xMin:xMax, yMin:yMax);
 
-    xCenterLocal = xGrid - xMin;
-    yCenterLocal = yGrid - yMin;
+    xCenterLocal = xGrid - xMin + 1;
+    yCenterLocal = yGrid - yMin + 1;
 
     [x_map, y_map] = find(window);
 
@@ -49,16 +49,18 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
 
         beta = atan2(dy, dx);                                       % obstacle angle   
         m    = max(0, Cxy^2*(a - b*d));                             % magnitude (closer = stronger)
-        k    = mod(round((beta + pi) / alpha), numSectors) + 1;     % sector index
+        k    = mod(round((beta + pi) / alpha), numSectors) + 1;                      % sector index
 
         h(k) = h(k) + m;
     end
+
     % Smooth histogram (1D Gaussian, circular)
     h = smoothHistogram(h, smoothSigma);
-    binary = h > threshold;
+    binary = h > threshold
+
     % Project target direction onto histogram
     targetAngle  = atan2(targetPose(2) - yRobot, targetPose(1) - xRobot);
-    targetSector = mod(floor((targetAngle + pi) / alpha), numSectors) + 1;
+    targetSector = mod(round((targetAngle + pi) / alpha), numSectors) + 1
 
     % Check if target sector is free
     freeWindow = floor(smax / 2);
@@ -69,7 +71,7 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     
     % Find zero-crossing transitions (valley edges)
     
-    edges = findValleyEdges(binary, numSectors);   % sector indices of transitions
+    edges = findValleyEdges(binary, numSectors)   % sector indices of transitions
 
     if isempty(edges)
         steerDirection = NaN;   % no free space — stop
@@ -83,19 +85,18 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     kn = edges(idx);
 
     % Wide or small valley?
-    freeCount = countFreeBinsFrom(binary, kn, numSectors);
+    [freeCount, dir] = countFreeBinsFrom(binary, kn, numSectors);
 
     % Substitui a selecção do kn por isto:
     if freeCount >= smax
         % Wide valley: steer toward centre of free region from kn
         offset       = floor(smax / 2);
-        steerSector  = mod(kn + offset - 1, numSectors) + 1;
+        steerSector  = mod(kn + dir*offset - 1, numSectors) + 1;
     else
         % Small valley: find the other edge and steer to centre
-        kn2         = mod(kn + freeCount - 2, numSectors) + 1;
+        kn2         = mod(kn + dir*freeCount - 1, numSectors) + 1;
         steerSector = round(mod((kn + kn2) / 2 - 1, numSectors)) + 1;
     end
-
     
     steerDirection = (steerSector - 1) * alpha - pi + alpha / 2;
     
@@ -132,18 +133,28 @@ function edges = findValleyEdges(binary, numSectors)
     for k = 1:numSectors
         curr = binary(k);
         prev = binary(mod(k - 2, numSectors) + 1);
-        if prev == 1 && curr == 0      % falling edge = start of free valley
+        if prev == 1 && curr == 0      % falling edge = início do vale
             edges = [edges, k];
+        elseif prev == 0 && curr == 1  % rising edge = fim do vale
+            last_free = mod(k - 2, numSectors) + 1;
+            edges = [edges, last_free];
         end
     end
 end
 
-function count = countFreeBinsFrom(binary, startSector, numSectors)
+function [count, dir] = countFreeBinsFrom(binary, startSector, numSectors)
     count = 0;
     k = startSector;
+    next = mod(k, numSectors) + 1;
+    if binary(next) == 0
+        dir = 1;
+    else
+        dir = -1;
+    end
+
     while binary(k) == 0
         count = count + 1;
-        k = mod(k, numSectors) + 1;
+        k = mod(k - 1 + dir, numSectors) + 1;
         if k == startSector; break; end   % full circle
     end
 end

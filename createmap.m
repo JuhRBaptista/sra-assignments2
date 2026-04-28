@@ -1,1 +1,0 @@
-path = pathPlanning("empty", "variables/path_empty.mat");
