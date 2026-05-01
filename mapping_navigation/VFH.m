@@ -3,7 +3,7 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     % ── Parameters (tune these) ───────────────────────────────────────────
     alpha       = pi/36;
     numSectors  = round(2*pi/alpha);               % angular resolution (5° per bin)
-    smax        = 20;                        % min bins for a "wide" valley
+    smax        = 16;                        % min bins for a "wide" valley
     threshold   = 1;                        % histogram counts below this = free
     smoothSigma = 1.5;                      % gaussian smoothing std dev
     scale       = 20;                       % map scale (pixels/meter)
@@ -71,7 +71,7 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     
     % Find zero-crossing transitions (valley edges)
     
-    edges = findValleyEdges(binary, numSectors)   % sector indices of transitions
+    edges = findValleyEdges(binary, numSectors);   % sector indices of transitions
 
     if isempty(edges)
         steerDirection = NaN;   % no free space — stop
