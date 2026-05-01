@@ -1,8 +1,0 @@
-
-x0 = 6;
-y0 = 6;
-
-x1 = 8;
-y1 = ;
-
-cells = bresenham(x0, y0, x1, y1)

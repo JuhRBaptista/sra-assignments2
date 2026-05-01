@@ -10,15 +10,15 @@ params.d_star = 0;
 params.rate   = 20;
 params.dt     = 0.05;
 params.T      = 200;
-map    = loadMap("lcmap");
+map    = loadMap("ymap");
 params.map = map;
 params.origin = 0.5;
 params.scale  = 20;
 
-avoidance = "vfh";
+avoidance = "none";
 
 % Path
-data     = load("variables/path_lcmap.mat");
+data     = load("variables/path_ymap4.mat");
 path     = data.path;
 xWorld   = (path(:,1) - params.origin) / params.scale;
 yWorld   = (path(:,2) - params.origin) / params.scale;

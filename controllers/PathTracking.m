@@ -43,7 +43,7 @@ function PathTracking(tbot, params, path, handles, avoidance)
         updatePlot(handles, traj, pose, target, h, alpha);
 
         % Avança waypoint
-        if distance < 0.3 && target_index < N
+        if distance < 0.1 && target_index < N
             target_index = target_index + 1;
             e_int = 0;
         end
@@ -60,11 +60,12 @@ end
 
 % ── computeTarget ─────────────────────────────────────────────────────────────
 function [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance)
-
+    
+    h = 0;
+    alpha= 0;
     switch avoidance
         case "vff"
-            h = 0;
-            alpha= 0;
+            
             target = computeTargetVFF(pose, waypoint, params);
         case "vfh"
             [target, h, alpha] = computeTargetVFH(pose, waypoint, params);

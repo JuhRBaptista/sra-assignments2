@@ -1,4 +1,4 @@
-function PathTracking2(tbot, params, path, handles, avoidance)
+function PathTracking(tbot, params, path, handles, avoidance)
 
     if nargin < 5
         avoidance="none";
@@ -9,13 +9,7 @@ function PathTracking2(tbot, params, path, handles, avoidance)
     N = size(path, 1); % Number of waypoints
     
     traj = [];
-
-    mapParams.scale   = 20;
-    mapParams.origin  = 0;
-    mapParams.mapSize = 80;
     
-    map = zeros(mapParams.mapSize, mapParams.mapSize);
-
     r = rateControl(params.rate);   % adiciona antes do for
     
     for t= 0:params.dt:params.T
@@ -25,14 +19,20 @@ function PathTracking2(tbot, params, path, handles, avoidance)
         
         traj = [traj; [pose.x, pose.y]];
             
+        [~, lddata] = tbot.readLidar();
+        vidx  = tbot.getInRangeLidarDataIdx(lddata);
+        scans = lddata.Cartesian(vidx, :);
+        
+        maxRange = 3.5; % LIDAR max range (assignment)
+        minRange = 0.1; 
+        
+        
         % Waypoint actual
         waypoint.x = path(target_index, 1);
         waypoint.y = path(target_index, 2);
-        
-        map = bayesianMapUpdate(tbot, map, mapParams);
 
-        % Target intermediário (VFF se map existir, directo caso contrário)
-        [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance, map);
+        % Target intermediário 
+        [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance);
 
         % Erros
         distance = getEuclidianDistance(pose, waypoint);
@@ -47,7 +47,6 @@ function PathTracking2(tbot, params, path, handles, avoidance)
         tbot.setVelocity(linear_velocity, angular_velocity);
 
         % Visualização
-        % updatePlot(handles, traj, pose, target);
         updatePlot(handles, traj, pose, target, h, alpha);
 
         % Avança waypoint
@@ -66,27 +65,26 @@ function PathTracking2(tbot, params, path, handles, avoidance)
     tbot.setVelocity(0, 0);
 end
 
-% ── computeTarget ─────────────────────────────────────────────────────────────
-function [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance, map)
+% computeTarget
+function [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance)
 
     switch avoidance
         case "vff"
             h = 0;
             alpha= 0;
-            target = computeTargetVFF(pose, waypoint, params, map);
+            target = computeTargetVFF(pose, waypoint, params);
         case "vfh"
-            [target, h, alpha] = computeTargetVFH(pose, waypoint, params, map);
+            [target, h, alpha] = computeTargetVFH(pose, waypoint, params);
         otherwise
             target = waypoint;
     end
 end
 
-
-% ── computeTargetVFF ──────────────────────────────────────────────────────────
-function target = computeTargetVFF(pose, waypoint, params, map)
+% computeTargetVFF 
+function target = computeTargetVFF(pose, waypoint, params)
     dist    = getEuclidianDistance(pose, waypoint);
     [Fa, Fr] = VFF([pose.x, pose.y], [waypoint.x, waypoint.y], ...
-                   map, 10, params.scale, params.origin);
+                   params.map, 10, params.scale, params.origin);
     F  = Fa + Fr;
     Fn = norm(F);
 
@@ -100,11 +98,10 @@ function target = computeTargetVFF(pose, waypoint, params, map)
     end
 end
 
-
-% ── computeTargetVFH ──────────────────────────────────────────────────────────
-function [target, h, alpha] = computeTargetVFH(pose, waypoint, params, map)
+% computeTargetVFH 
+function [target, h, alpha] = computeTargetVFH(pose, waypoint, params)
     [steerAngle, h, alpha] = VFH([pose.x, pose.y, pose.theta], [waypoint.x, waypoint.y], ...
-                     map, 10);
+                     params.map, 10);
 
     if isnan(steerAngle)
         % No free space — hold position
