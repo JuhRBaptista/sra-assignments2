@@ -1,6 +1,6 @@
 clc; clear; close all; rosshutdown;
 
-path = pathPlanning("ymap", "variables/path_ymap4.mat");
+path = pathPlanning("lcmap", "variables/path_lcmap4.mat");
 % 
 % % Parâmetros
 % params.kv     = 2.0;

@@ -49,7 +49,7 @@ function mapBuilding2(tbot, params, savePath)
 
         % ===== VISUALIZATION =====
         if mod(frame, params.plotSkip) == 0
-            plotManager().update(ui, map.prob, robotGrid, pose.theta);
+            plotManagerUpdate(ui, map.prob, robotGrid, pose.theta);
         end
 
         % ===== CONTROL =====

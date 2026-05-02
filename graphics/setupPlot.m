@@ -41,6 +41,8 @@ function handles = setupPlot(map, pathWorld, origin, scale)
     handles.traj   = plot(NaN, NaN, 'b',  'LineWidth', 2);
     handles.robot  = plot(NaN, NaN, 'ko', 'MarkerSize', 8, 'MarkerFaceColor', 'k');
     handles.target = plot(NaN, NaN, 'go', 'MarkerSize', 10, 'LineWidth', 2);
+    % inside setupPlot, after imagesc(...)
+    handles.mapImg = imagesc(x_extent, y_extent, map');
 
     % Histograma — começa vazio, será preenchido em updatePlot
     handles.hist = plot(NaN, NaN, 'm-', 'LineWidth', 1.5);

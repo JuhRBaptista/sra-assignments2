@@ -4,6 +4,7 @@ function logOdds = logOddsUpdate(logOdds, robotGrid, occGrid, params)
     l_free = -0.65;
     l_min = -5.0;
     l_max = 5.0;
+    l_init = 0;
 
     x0 = robotGrid(1);
     y0 = robotGrid(2);
@@ -22,11 +23,11 @@ function logOdds = logOddsUpdate(logOdds, robotGrid, occGrid, params)
             idxFree = sub2ind(size(logOdds), ...
                 freeCells(:,1), freeCells(:,2));
 
-            logOdds(idxFree) = logOdds(idxFree) + l_free;
+            logOdds(idxFree) = logOdds(idxFree) + l_free + l_init;
 
         end
-
-        logOdds(x1,y1) = logOdds(x1,y1) + l_occ;
+        
+        logOdds(x1,y1) = logOdds(x1,y1) + l_occ + l_init;
 
     end
 

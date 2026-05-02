@@ -4,7 +4,7 @@ function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, sea
     alpha       = pi/36;
     numSectors  = round(2*pi/alpha);               % angular resolution (5° per bin)
     smax        = 16;                        % min bins for a "wide" valley
-    threshold   = 0.6;                        % histogram counts below this = free
+    threshold   = 6;                        % histogram counts below this = free
     smoothSigma = 1.5;                      % gaussian smoothing std dev
     scale       = 20;                       % map scale (pixels/meter)
     origin      = 0;                        % map origin offset
