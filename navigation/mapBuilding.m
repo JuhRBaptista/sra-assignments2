@@ -18,44 +18,26 @@ function mapBuilding(tbot, params, savePath)
     while ~exitFlag
 
         % --- Robot pose ---
-        [xRobot, yRobot, theta] = tbot.readPose();
-        theta = normalizeAngle(theta);
+        [pose.x, pose.y, pose.theta] = tbot.readPose();
+        pose.theta = normalizeAngle(pose.theta);
+        
+        xRobotGrid = round(pose.x * params.scale) + params.origin;
+        yRobotGrid = round(pose.y * params.scale) + params.origin;
 
         % --- LIDAR ---
         [~, lddata] = tbot.readLidar();
         vidx  = tbot.getInRangeLidarDataIdx(lddata);
         scans = lddata.Cartesian(vidx, :);
 
-        maxRange = 3.5; % LIDAR max range (assignment)
-        minRange = 0.1; 
-    
-        xScans = scans(:,1);
-        yScans = scans(:,2);
-    
-        % Filter invalid / too far
-        ranges = sqrt(xScans.^2 + yScans.^2);
-        valid = ~isnan(ranges) & ~isinf(ranges) & (ranges < maxRange) & (ranges > minRange);
-    
-        xScans = xScans(valid);
-        yScans = yScans(valid);
-    
-        % Transform to world
-        xWorld = xRobot + xScans*cos(theta) - yScans*sin(theta);
-        yWorld = yRobot + xScans*sin(theta) + yScans*cos(theta);
-    
-        % Convert to grid 
-        xScaled = round(xWorld * params.scale) + params.origin;
-        yScaled = round(yWorld * params.scale) + params.origin;
-    
-        xRobotGrid = round(xRobot * params.scale) + params.origin;
-        yRobotGrid = round(yRobot * params.scale) + params.origin;
-
-        logOddsMap = bayesianMapUpdate(xRobotGrid, yRobotGrid, xScaled, yScaled, logOddsMap, params);
+        [x_occ, y_occ]  = processScan(pose, scans, params);
+        
+        logOddsMap = bayesianMapUpdate(xRobotGrid, yRobotGrid, x_occ, y_occ, logOddsMap, params);
 
         %Convert to probability 
         probMap = 1 ./ (1 + exp(-logOddsMap));
+
         % Update display 
-        updatePlot(handles, probMap, xRobotGrid, yRobotGrid, theta);
+        updatePlot(handles, probMap, xRobotGrid, yRobotGrid, pose.theta);
 
         % Move robot 
         tbot.setVelocity(v, w);
@@ -71,6 +53,29 @@ function mapBuilding(tbot, params, savePath)
 
     close(handles.fig);
     tbot.stop();
+end
+
+function [x_occ, y_occ] = processScan(pose, scans, params)
+
+    maxRange = 3.5; % LIDAR max range (assignment)
+    minRange = 0.1; 
+
+    xScans = scans(:,1);
+    yScans = scans(:,2);
+
+    ranges = sqrt(xScans.^2 + yScans.^2);
+    valid = ~isnan(ranges) & ~isinf(ranges) & (ranges < maxRange) & (ranges > minRange);
+    
+    xScans = xScans(valid);
+    yScans = yScans(valid);
+
+    % Transform to world
+    xWorld = pose.x + xScans*cos(pose.theta) - yScans*sin(pose.theta);
+    yWorld = pose.y + xScans*sin(pose.theta) + yScans*cos(pose.theta);
+
+    x_occ = round(xWorld * params.scale) + params.origin;
+    y_occ = round(yWorld * params.scale) + params.origin;
+
 end
 
 function handles = setupPlot(map)
@@ -89,7 +94,7 @@ end
 
 function updatePlot(handles, map, xR, yR, theta)
     arrowLength = 10;
-    set(handles.img,   'CData', map);
+    set(handles.img,   'CData', map');
     set(handles.robot, 'XData', xR,  'YData', yR);
     set(handles.arrow, 'XData', xR,  'YData', yR, ...
                        'UData', arrowLength * cos(theta), ...

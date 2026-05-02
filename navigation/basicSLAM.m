@@ -22,7 +22,7 @@ function basicSLAM(tbot, params, path, avoidance, savePath)
     for t= 0:params.dt:params.T
 
         % --- Robot pose ---
-        [pose.x, pose.y, pose.theta] = tbot.readPose();
+        [pose.x, pose.y, pose.theta, ~] = tbot.readPose();
         theta = normalizeAngle(pose.theta);
 
         traj = [traj; [pose.x, pose.y]];
@@ -32,13 +32,13 @@ function basicSLAM(tbot, params, path, avoidance, savePath)
         vidx  = tbot.getInRangeLidarDataIdx(lddata);
         scans = lddata.Cartesian(vidx, :);
 
-        maxRange = 3.5; % LIDAR max range (assignment)
-        minRange = 0.1; 
+        maxRange = 3.4; % LIDAR max range (assignment)
+        minRange = 0.2; 
     
         xScans = scans(:,1);
         yScans = scans(:,2);
     
-        % Filter invalid / too far
+        % Filter invalid / too far or too close
         ranges = sqrt(xScans.^2 + yScans.^2);
         valid = ~isnan(ranges) & ~isinf(ranges) & (ranges < maxRange) & (ranges > minRange);
     
@@ -80,6 +80,9 @@ function basicSLAM(tbot, params, path, avoidance, savePath)
         e_int            = e_int + e * params.dt;
         linear_velocity  = params.kv * e + params.ki * e_int;
         angular_velocity = params.ks * phi;
+
+        linear_velocity  = max(0, min(0.1, linear_velocity));
+        angular_velocity = max(-1.84, min(1.84, angular_velocity));
 
         tbot.setVelocity(linear_velocity, angular_velocity);
 
