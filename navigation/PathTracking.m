@@ -10,7 +10,7 @@ function PathTracking(tbot, params, path, handles, avoidance)
     
     traj = [];
     
-    r = rateControl(params.rate);   % adiciona antes do for
+    r = rateControl(params.rate);  
     
     for t= 0:params.dt:params.T
 
@@ -23,7 +23,7 @@ function PathTracking(tbot, params, path, handles, avoidance)
         waypoint.x = path(target_index, 1);
         waypoint.y = path(target_index, 2);
 
-        % Target intermediário (VFF se map existir, directo caso contrário)
+        % Target intermediário 
         [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance);
 
         % Erros
@@ -39,8 +39,7 @@ function PathTracking(tbot, params, path, handles, avoidance)
         tbot.setVelocity(linear_velocity, angular_velocity);
 
         % Visualização
-        % updatePlot(handles, traj, pose, target);
-        updatePlot(handles, traj, pose, target, h, alpha);
+        updatePathTrackingPlot(handles, traj, pose, target, h, alpha);
 
         % Avança waypoint
         if distance < 0.1 && target_index < N
@@ -58,14 +57,13 @@ function PathTracking(tbot, params, path, handles, avoidance)
     tbot.setVelocity(0, 0);
 end
 
-% ── computeTarget ─────────────────────────────────────────────────────────────
+% computeTarget
 function [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance)
     
     h = 0;
     alpha= 0;
     switch avoidance
         case "vff"
-            
             target = computeTargetVFF(pose, waypoint, params);
         case "vfh"
             [target, h, alpha] = computeTargetVFH(pose, waypoint, params);
@@ -75,9 +73,9 @@ function [target, h, alpha] = computeTarget(pose, waypoint, params, avoidance)
 end
 
 
-% ── computeTargetVFF ──────────────────────────────────────────────────────────
+% computeTargetVFF 
 function target = computeTargetVFF(pose, waypoint, params)
-    dist    = getEuclidianDistance(pose, waypoint);
+    
     [Fa, Fr] = VFF([pose.x, pose.y], [waypoint.x, waypoint.y], ...
                    params.map, 10, params.scale, params.origin);
     F  = Fa + Fr;
@@ -87,6 +85,7 @@ function target = computeTargetVFF(pose, waypoint, params)
         target = pose;
     else
         dir_hat  = F / Fn;
+        dist    = getEuclidianDistance(pose, waypoint);
         L        = min(1, dist);
         target.x = pose.x + L * dir_hat(1);
         target.y = pose.y + L * dir_hat(2);
@@ -94,13 +93,13 @@ function target = computeTargetVFF(pose, waypoint, params)
 end
 
 
-% ── computeTargetVFH ──────────────────────────────────────────────────────────
+% computeTargetVFH
 function [target, h, alpha] = computeTargetVFH(pose, waypoint, params)
     [steerAngle, h, alpha] = VFH([pose.x, pose.y, pose.theta], [waypoint.x, waypoint.y], ...
                      params.map, 10);
 
     if isnan(steerAngle)
-        % No free space — hold position
+        % No free space - hold position
         target = pose;
         return;
     end

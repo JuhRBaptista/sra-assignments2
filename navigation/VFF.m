@@ -1,55 +1,55 @@
-function [Fa, Fr] = VFF(currentPose, targetPose, map, searchWindowSize, scale, origin)
-    
-    Fcr = 0.5;
-    Fca = 1;
+function [fAttractive, fRepulsive] = VFF(robotPose, targetPose, occMap, windowSize, scale, origin)
 
-    targetX = targetPose(1);
-    targetY = targetPose(2);
+    % Gains
+    kAtt = 1.0;
+    kRep = 0.5;
 
-    currentX = round(currentPose(1)*scale + origin);
-    currentY = round(currentPose(2)*scale + origin);
+    % --- Robot position in grid ---
+    robotGridX = round(robotPose(1) * scale + origin);
+    robotGridY = round(robotPose(2) * scale + origin);
 
-    targetDeltaX = targetX - currentPose(1);
-    targetDeltaY = targetY - currentPose(2);
+    % --- Attractive force ---
+    delta = targetPose - robotPose;
+    dist  = norm(delta);
 
-    targetDistance = sqrt(targetDeltaY^2 + targetDeltaX^2);
-    targetDirection = [targetDeltaX, targetDeltaY]./targetDistance;
+    if dist > 0
+        fAttractive = kAtt * (delta / dist);
+    else
+        fAttractive = [0, 0];
+    end
 
-    Fa = Fca.*targetDirection;
-    
-    % Calcular Força repulsiva
-    Fr = [0, 0];
+    % --- Repulsive force ---
+    fRepulsive = [0, 0];
+    halfWindow = floor(windowSize / 2);
 
-    range = floor(searchWindowSize/2);
+    [mapH, mapW] = size(occMap);
 
-    [mHeight, mWidth] = size(map);
+    xMin = max(1, robotGridX - halfWindow);
+    xMax = min(mapH, robotGridX + halfWindow);
+    yMin = max(1, robotGridY - halfWindow);
+    yMax = min(mapW, robotGridY + halfWindow);
 
-    x_min = max(1, currentX-range);
-    x_max = min(mHeight, currentX+range);
-    y_min = max(1, currentY-range);
-    y_max = min(mWidth, currentY+range);
+    for x = xMin:xMax
+        for y = yMin:yMax
 
-    for x=x_min:x_max
-        for y=y_min:y_max
-            
-            Cxy = map(x, y);
-            
-            if Cxy == 0
-                continue;
-            end
-            
-            deltaX = x - currentX;
-            deltaY = y - currentY;
-            distance = sqrt(deltaX^2 + deltaY^2);
-
-            if distance == 0
-                continue;
+            occValue = occMap(x, y);
+            if occValue == 0
+                continue; % skip free cells
             end
 
-            intensity = Fcr*Cxy/distance^2;
-            direction = [deltaX, deltaY]./distance;
-            Fr = Fr - intensity*direction;
-            
+            dx = x - robotGridX;
+            dy = y - robotGridY;
+            d  = norm([dx, dy]);
+
+            if d == 0
+                continue; % avoid singularity
+            end
+
+            % Repulsive contribution (inverse square law)
+            magnitude = kRep * occValue / (d^2);
+            direction = [dx, dy] / d;
+
+            fRepulsive = fRepulsive - magnitude * direction;
         end
     end
 end

@@ -1,6 +1,6 @@
 function [path] = aStar(map, start, goal)
 
-    %% DEFINITIONS    
+    % DEFINITIONS    
     
     openList = [start];                                 % List with possible nodes to be visited
     closedSet = false(size(map));                       % List with nodes already visited
@@ -14,7 +14,7 @@ function [path] = aStar(map, start, goal)
     fScore(start(1), start(2)) = getManhattanDistance(start, goal); 
     gScore(start(1), start(2)) = 0;                                 
     
-    %% MAIN LOOP
+    % MAIN LOOP
     while ~isempty(openList)
         
         % Get node with smaller fScore to be evaluated
@@ -68,7 +68,7 @@ function [path] = aStar(map, start, goal)
 end
 
 
-%% AUXILIARY FUNCTIONS
+% AUXILIARY FUNCTIONS
 
 function [manhattanDistance] = getManhattanDistance(pose, goal)
     manhattanDistance = abs(goal(1) - pose(1)) + abs(goal(2) - pose(2));

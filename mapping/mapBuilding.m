@@ -1,4 +1,4 @@
-function mapBuilding2(tbot, params, savePath)
+function mapBuilding(tbot, params, savePath)
 
     % INIT
     map.logOdds = zeros(params.mapSize, params.mapSize);
@@ -23,7 +23,7 @@ function mapBuilding2(tbot, params, savePath)
 
         frame = frame + 1;
 
-        % ===== SENSORS =====
+        % SENSORS 
         [pose.x, pose.y, theta] = tbot.readPose();
         pose.theta = normalizeAngle(theta);
 
@@ -33,26 +33,22 @@ function mapBuilding2(tbot, params, savePath)
 
         scan = scanFilter(scan);
 
-        % ===== GEOMETRY =====
+        % GEOMETRY 
         worldPts = scanToWorld(scan, pose);
         gridPts = worldToGrid(worldPts, params);
         robotGrid = worldToGrid([pose.x; pose.y], params);
 
-        % ===== MAPPING =====
-        map.logOdds = logOddsUpdate( ...
-            map.logOdds, ...
-            robotGrid, ...
-            gridPts, ...
-            params);
+        % MAPPING 
+        map.logOdds = logOddsUpdate(map.logOdds, robotGrid, gridPts, params);
 
-        map.prob = 1./ 1 ./ (1 + exp(-map.logOdds));
+        map.prob = 1 ./ (1 + exp(-map.logOdds));
 
-        % ===== VISUALIZATION =====
+        % VISUALIZATION 
         if mod(frame, params.plotSkip) == 0
             plotManagerUpdate(ui, map.prob, robotGrid, pose.theta);
         end
 
-        % ===== CONTROL =====
+        % CONTROL
         tbot.setVelocity(control.v, control.w);
 
         waitfor(r);

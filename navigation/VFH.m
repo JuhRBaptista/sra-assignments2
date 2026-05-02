@@ -1,105 +1,109 @@
-function [steerDirection, binary, alpha] = VFH(currentPose, targetPose, map, searchWindowSize)
+function [steerAngle, binaryHist, sectorWidth] = VFH(robotPose, targetPose, occMap, windowSize)
 
-    % ── Parameters (tune these) ───────────────────────────────────────────
-    alpha       = pi/36;
-    numSectors  = round(2*pi/alpha);               % angular resolution (5° per bin)
-    smax        = 16;                        % min bins for a "wide" valley
-    threshold   = 6;                        % histogram counts below this = free
-    smoothSigma = 1.5;                      % gaussian smoothing std dev
-    scale       = 20;                       % map scale (pixels/meter)
-    origin      = 0;                        % map origin offset
+    % Parameters 
+    sectorWidth    = pi / 36;                 % angular resolution (~5 deg)
+    numSectors     = round(2*pi / sectorWidth);
+    valleyMinWidth = 16;
+    threshold      = 6;
+    smoothSigma    = 1.5;
+    scale          = 20;
+    origin         = 0;
 
-    half  = floor(searchWindowSize / 2);
-    b  = 3;
-    a  = half*b*sqrt(2);
+    % Window extraction
+    halfWindow = floor(windowSize / 2);
 
-    % Extract local obstacle points from map window
-    xRobot = currentPose(1);
-    yRobot = currentPose(2);
+    robotGridX = round(robotPose(1) * scale) + origin;
+    robotGridY = round(robotPose(2) * scale) + origin;
 
-    xGrid = round(xRobot * scale) + origin;
-    yGrid = round(yRobot * scale) + origin;
+    xMin = max(1, robotGridX - halfWindow);
+    xMax = min(size(occMap,1), robotGridX + halfWindow);
+    yMin = max(1, robotGridY - halfWindow);
+    yMax = min(size(occMap,2), robotGridY + halfWindow);
 
-    xMin  = max(1, xGrid - half);   
-    xMax = min(size(map,1), xGrid + half);
-    yMin  = max(1, yGrid - half);   
-    yMax = min(size(map,2), yGrid + half);
+    localMap = occMap(xMin:xMax, yMin:yMax);
 
-    window = map(xMin:xMax, yMin:yMax);
+    centerX = robotGridX - xMin + 1;
+    centerY = robotGridY - yMin + 1;
 
-    xCenterLocal = xGrid - xMin + 1;
-    yCenterLocal = yGrid - yMin + 1;
+    [obsX, obsY] = find(localMap);
 
-    [x_map, y_map] = find(window);
+    % Polar histogram
+    histogram = zeros(1, numSectors);
 
-    % Build polar histogram 
-    h = zeros(1, numSectors);
+    b = 3;
+    a = halfWindow * b * sqrt(2);
+    
 
-    for i = 1:length(x_map)
-        x = x_map(i);
-        y = y_map(i);
+    for i = 1:length(obsX)
 
-        Cxy = window(x, y);
+        occValue = localMap(obsX(i), obsY(i));
 
+        dx = obsX(i) - centerX;
+        dy = obsY(i) - centerY;
+        d  = norm([dx, dy]);
 
-        dx = x - xCenterLocal;
-        dy = y - yCenterLocal;
+        if d == 0
+            continue;
+        end
 
-        d  = sqrt(dx^2 + dy^2);
+        angle = atan2(dy, dx);
 
-        beta = atan2(dy, dx);                                       % obstacle angle   
-        m    = max(0, Cxy^2*(a - b*d));                             % magnitude (closer = stronger)
-        k    = mod(round((beta + pi) / alpha), numSectors) + 1;                      % sector index
+        % Obstacle influence (closer = stronger)
+        magnitude = max(0, occValue^2 * (a - b*d));
 
-        h(k) = h(k) + m;
+        sector = mod(round((angle + pi) / sectorWidth), numSectors) + 1;
+
+        histogram(sector) = histogram(sector) + magnitude;
     end
 
-    % Smooth histogram (1D Gaussian, circular)
-    h = smoothHistogram(h, smoothSigma);
-    binary = h > threshold
+    % Smooth histogram 
+    histogram = smoothHistogram(histogram, smoothSigma);
 
-    % Project target direction onto histogram
-    targetAngle  = atan2(targetPose(2) - yRobot, targetPose(1) - xRobot);
-    targetSector = mod(round((targetAngle + pi) / alpha), numSectors) + 1
+    % Binary occupancy
+    binaryHist = histogram > threshold;
 
-    % Check if target sector is free
-    freeWindow = floor(smax / 2);
-    if isSectorRangeFree(h, targetSector, freeWindow, threshold, numSectors)
-        steerDirection = targetAngle;
-        return;
-    end
-    
-    % Find zero-crossing transitions (valley edges)
-    
-    edges = findValleyEdges(binary, numSectors);   % sector indices of transitions
+    % Target direction
+    targetAngle = atan2(targetPose(2) - robotPose(2), ...
+                        targetPose(1) - robotPose(1));
 
-    if isempty(edges)
-        steerDirection = NaN;   % no free space — stop
+    targetSector = mod(round((targetAngle + pi) / sectorWidth), numSectors) + 1;
+
+    % If target direction is free → go straight
+    if isSectorFree(histogram, targetSector, floor(valleyMinWidth/2), threshold, numSectors)
+        steerAngle = targetAngle;
         return;
     end
 
-    %Select nearest valley edge to target 
-    diffs = min(abs(edges - targetSector), numSectors - abs(edges - targetSector)); 
+    % Find valleys 
+    valleyEdges = findValleyEdges(binaryHist, numSectors);
 
-    [~, idx] = min(diffs);
-    kn = edges(idx);
+    if isempty(valleyEdges)
+        steerAngle = NaN; % no path available
+        return;
+    end
 
-    % Wide or small valley?
-    [freeCount, dir] = countFreeBinsFrom(binary, kn, numSectors);
+    % Select closest valley to target
+    diff = min(abs(valleyEdges - targetSector), ...
+               numSectors - abs(valleyEdges - targetSector));
 
-    % Substitui a selecção do kn por isto:
-    if freeCount >= smax
-        % Wide valley: steer toward centre of free region from kn
-        offset       = floor(smax / 2);
-        steerSector  = mod(kn + dir*offset - 1, numSectors) + 1;
+    [~, idx] = min(diff);
+    startSector = valleyEdges(idx);
+
+    % Count valley width
+    [freeCount, direction] = countFreeBins(binaryHist, startSector, numSectors);
+
+    if freeCount >= valleyMinWidth
+        % Wide valley → go inside it
+        offset      = floor(valleyMinWidth / 2);
+        steerSector = mod(startSector + direction*offset - 1, numSectors) + 1;
     else
-        % Small valley: find the other edge and steer to centre
-        kn2         = mod(kn + dir*freeCount - 1, numSectors) + 1;
-        steerSector = round(mod((kn + kn2) / 2 - 1, numSectors)) + 1;
+        % Narrow valley → go to its center
+        endSector   = mod(startSector + direction*freeCount - 1, numSectors) + 1;
+        steerSector = round(mod((startSector + endSector)/2 - 1, numSectors)) + 1;
     end
-    
-    steerDirection = (steerSector - 1) * alpha - pi + alpha / 2;
-    
+
+    % Convert sector to angle
+    steerAngle = (steerSector - 1) * sectorWidth - pi + sectorWidth/2;
 end
 
 function hs = smoothHistogram(h, sigma)
@@ -117,7 +121,7 @@ function hs = smoothHistogram(h, sigma)
     end
 end
 
-function free = isSectorRangeFree(h, centerSector, halfWidth, threshold, numSectors)
+function free = isSectorFree(h, centerSector, halfWidth, threshold, numSectors)
     free = true;
     for offset = -halfWidth:halfWidth
         k = mod(centerSector + offset - 1, numSectors) + 1;
@@ -142,7 +146,7 @@ function edges = findValleyEdges(binary, numSectors)
     end
 end
 
-function [count, dir] = countFreeBinsFrom(binary, startSector, numSectors)
+function [count, dir] = countFreeBins(binary, startSector, numSectors)
     count = 0;
     k = startSector;
     next = mod(k, numSectors) + 1;

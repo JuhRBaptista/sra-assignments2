@@ -9,4 +9,4 @@ params.rate    = 5;
 params.plotSkip = 5;
 
 tbot.setPose(0.3, 0.3, pi/2);
-mapBuilding2(tbot, params, "save")
+mapBuilding(tbot, params, "save")
