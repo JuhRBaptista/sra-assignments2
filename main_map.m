@@ -1,4 +1,4 @@
-/rosshutdown;
+rosshutdown;
 clear classes;
 clc;
 pause(1);
@@ -9,20 +9,20 @@ params.ki     = 0.1;
 params.ks     = 3.0;
 params.d_star = 0;
 params.dt     = 0.05;
-params.T      = 200;
+params.T      = 2000;
 
 % Parâmetros do mapa 
 params.scale   = 20;
 params.origin  = 0;
 params.mapSize = 80;
-params.rate    = 5;   % só uma definição
+params.rate    = 50;   % só uma definição
 params.plotSkip = 1;
 
 
-avoidance = "vfh";
+avoidance = "none";
 
 % Carregar e converter path para coordenadas mundo
-data      = load("variables/path_lcmap4.mat");
+data      = load("variables/path_csqmap.mat");
 path      = data.path;
 xWorld    = (path(:,1) - params.origin) / params.scale;
 yWorld    = (path(:,2) - params.origin) / params.scale;
@@ -34,4 +34,4 @@ tbot.setPose(pathWorld(1,1), pathWorld(1,2), pi/2);
 tbot.stop();
 
 % --- Correr SLAM + navegação ---
-mapBuildingWithTracking(tbot, params, pathWorld, "variables/lcmap", "vfh");
+mapBuildingWithTracking(tbot, params, pathWorld, "variables/map", "vff");

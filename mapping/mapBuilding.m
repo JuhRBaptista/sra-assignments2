@@ -29,15 +29,15 @@ function mapBuilding(tbot, params, savePath)
 
         [~, data] = tbot.readLidar();
         idx = tbot.getInRangeLidarDataIdx(data);
-        scan = data.Cartesian(idx, :)';
+        scan = data.Cartesian(idx, :);
 
         scan = scanFilter(scan);
 
         % GEOMETRY 
         worldPts = scanToWorld(scan, pose);
-        gridPts = worldToGrid(worldPts, params);
-        robotGrid = worldToGrid([pose.x; pose.y], params);
-
+        gridPts = unique(worldToGrid(worldPts, params), 'rows');
+        robotGrid = worldToGrid([pose.x, pose.y], params);
+        
         % MAPPING 
         map.logOdds = logOddsUpdate(map.logOdds, robotGrid, gridPts, params);
 

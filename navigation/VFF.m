@@ -2,7 +2,7 @@ function [fAttractive, fRepulsive] = VFF(robotPose, targetPose, occMap, windowSi
 
     % Gains
     kAtt = 1.0;
-    kRep = 0.5;
+    kRep = 1.0;
 
     % --- Robot position in grid ---
     robotGridX = round(robotPose(1) * scale + origin);

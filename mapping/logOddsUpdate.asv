@@ -7,9 +7,12 @@ function logOdds = logOddsUpdate(logOdds, robotGrid, occGrid, params)
     y0 = robotGrid(2);
     M  = params.mapSize;
 
+    % AQUI: separa livres de ocupados ANTES de usar
+    [freeGrid, occGrid] = scanFilter(occGrid, params);  % <-- linha descomentada
+
     % Free cells via Bresenham (usa freeGrid, que inclui raios truncados)
-    for i = 1:size(occGrid, 1)
-        freeCells = bresenham(x0, y0, occGrid(i,1), occGrid(i,2));
+    for i = 1:size(freeGrid, 1)
+        freeCells = bresenham(x0, y0, freeGrid(i,1), freeGrid(i,2));
         valid = freeCells(:,1) > 0 & freeCells(:,1) <= M & ...
                 freeCells(:,2) > 0 & freeCells(:,2) <= M;
         freeCells = freeCells(valid, :);
@@ -19,9 +22,10 @@ function logOdds = logOddsUpdate(logOdds, robotGrid, occGrid, params)
         end
     end
 
+    % Occupied endpoints (só occGrid, pontos dentro do range)
     x1 = occGrid(:,1);
     y1 = occGrid(:,2);
-
+    
     validOcc = x1 > 0 & x1 <= M & y1 > 0 & y1 <= M;
     occIdx = sub2ind([M M], x1(validOcc), y1(validOcc));
     logOdds(occIdx) = logOdds(occIdx) + l_occ;

@@ -2,7 +2,7 @@ function ui = plotManager(map, params)
 
     ui.fig = figure('KeyPressFcn', @keyboardControl);
 
-    ui.img = imagesc(map');
+    ui.img = imagesc(map', [0 1]); 
     colormap(flipud(gray));
     axis equal;
     set(gca, 'YDir', 'normal');
